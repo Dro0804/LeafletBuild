@@ -26,6 +26,37 @@
     height: 75vh;
     pointer-events: auto;   /* receives input when visible */
   }
+
+  /* --- Pin UI --- */
+.pin-ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  gap: .5rem;
+}
+.pin-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.35);
+  display: grid; place-items: center;
+  z-index: 20;
+}
+.pin-modal__box {
+  background: #fff; color:#111; width: min(92vw, 400px);
+  border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+.pin-modal__box label { display: grid; gap: 6px; margin: 10px 0; font-weight: 600; }
+.pin-modal__box input, .pin-modal__box textarea {
+  width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;
+}
+.pin-modal__actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top: 10px; }
+
+/* make sure Cesium can receive mouse events */
+#cesiumContainer { position: relative; z-index: 1; pointer-events: auto; }
+/* the inactive map is display:none already, but if you ever only hide it with visibility, keep: */
+#leaflet-map { pointer-events: auto; }
+
 </style>
   
 {% endblock %}
@@ -92,6 +123,31 @@
 
   <!-- 3D Cesium map (hidden initially) -->
   <div id="cesiumContainer" style="width:100%; height:75vh; display:none;"></div>
+  <!-- Pin UI (only shown in 3D) -->
+<div id="pinUi" class="pin-ui" style="display:none">
+  <button id="pinModeBtn" class="btn">➕ Add pin</button>
+  <button id="exitPinModeBtn" class="btn secondary" style="display:none">Done</button>
+</div>
+
+<!-- Pin modal -->
+<div id="pinModal" class="pin-modal" style="display:none">
+  <div class="pin-modal__box">
+    <h3 id="pinModalTitle">New pin</h3>
+    <label>
+      Title
+      <input id="pinTitle" type="text" placeholder="e.g. Waterhole" />
+    </label>
+    <label>
+      Notes
+      <textarea id="pinNotes" rows="4" placeholder="Type details…"></textarea>
+    </label>
+    <div class="pin-modal__actions">
+      <button id="pinSave" class="btn">Save</button>
+      <button id="pinDelete" class="btn danger" style="display:none">Delete</button>
+      <button id="pinCancel" class="btn secondary">Cancel</button>
+    </div>
+  </div>
+</div>
 </section>
 
 
@@ -234,6 +290,8 @@
     window._viewer = viewer; // handy for DevTools
     console.log('[Cesium] viewer created', Cesium.VERSION);
 
+    window._viewer = viewer;  // helps external helpers access it
+    setupPinUI(viewer);       // enable Add Pin UI
      loadPinsFromLocalStorage(viewer);
 
     // === 2) Put camera somewhere sane so you see the globe immediately
@@ -370,6 +428,165 @@ function loadPinsFromLocalStorage(viewer) {
       description: `<p>${p.description}</p>`
     });
   });
+}
+
+// Simple key so dev/prod don’t collide
+const PIN_STORE_KEY = 'cesium_pins:v1';
+
+// runtime state
+let addPinMode = false;
+let editingPinId = null;
+
+// --- UI wiring ---
+function setupPinUI(viewer) {
+  const pinUi = document.getElementById('pinUi');
+  const btnAdd = document.getElementById('pinModeBtn');
+  const btnDone = document.getElementById('exitPinModeBtn');
+
+  // show the UI when 3D is visible
+  pinUi.style.display = 'block';
+
+  btnAdd.onclick = () => {
+    addPinMode = true;
+    btnAdd.style.display = 'none';
+    btnDone.style.display = 'inline-block';
+    viewer.canvas.style.cursor = 'crosshair';
+  };
+  btnDone.onclick = () => exitAddMode(viewer);
+
+  // click-on-globe to place or edit
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+  handler.setInputAction((movement) => {
+    if (!addPinMode) return;
+
+    const pos = viewer.scene.pickPosition(movement.position);
+    if (!Cesium.defined(pos)) return;
+    const carto = Cesium.Cartographic.fromCartesian(pos);
+    const lon = Cesium.Math.toDegrees(carto.longitude);
+    const lat = Cesium.Math.toDegrees(carto.latitude);
+    const height = carto.height || 0;
+
+    openPinModal({ id: null, lon, lat, height, title:'', notes:'' }, viewer);
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  // click an existing pin to edit
+  handler.setInputAction((movement) => {
+    const picked = viewer.scene.pick(movement.position);
+    if (!picked || !picked.id || !picked.id.pinMeta) return;
+    const ent = picked.id;
+    const { id, lon, lat, height, title, notes } = ent.pinMeta;
+    openPinModal({ id, lon, lat, height, title, notes }, viewer);
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+function exitAddMode(viewer) {
+  addPinMode = false;
+  document.getElementById('pinModeBtn').style.display = 'inline-block';
+  document.getElementById('exitPinModeBtn').style.display = 'none';
+  viewer.canvas.style.cursor = 'default';
+}
+
+// --- Modal / CRUD ---
+function openPinModal(model, viewer) {
+  const m = document.getElementById('pinModal');
+  const titleEl = document.getElementById('pinTitle');
+  const notesEl = document.getElementById('pinNotes');
+  const saveBtn = document.getElementById('pinSave');
+  const delBtn  = document.getElementById('pinDelete');
+  const cancel  = document.getElementById('pinCancel');
+
+  editingPinId = model.id; // null when new
+  document.getElementById('pinModalTitle').textContent = model.id ? 'Edit pin' : 'New pin';
+  titleEl.value = model.title || '';
+  notesEl.value = model.notes || '';
+  delBtn.style.display = model.id ? 'inline-block' : 'none';
+
+  m.style.display = 'grid';
+
+  const cleanup = () => {
+    saveBtn.onclick = delBtn.onclick = cancel.onclick = null;
+    m.style.display = 'none';
+  };
+
+  saveBtn.onclick = () => {
+    const title = titleEl.value.trim() || 'Untitled pin';
+    const notes = notesEl.value.trim();
+    if (model.id) {
+      updatePinEntity(model.id, { title, notes }, viewer);
+    } else {
+      const id = crypto.randomUUID();
+      createPinEntity({ id, lon: model.lon, lat: model.lat, height: model.height, title, notes }, viewer);
+    }
+    savePinsToLocalStorage(viewer);
+    cleanup();
+  };
+
+  delBtn.onclick = () => {
+    if (model.id) {
+      const ent = viewer.entities.getById(model.id);
+      if (ent) viewer.entities.remove(ent);
+      savePinsToLocalStorage(viewer);
+    }
+    cleanup();
+  };
+
+  cancel.onclick = cleanup;
+}
+
+// --- Entities ---
+function createPinEntity({ id, lon, lat, height=0, title, notes }, viewer) {
+  const pinImg = new Cesium.PinBuilder().fromColor(Cesium.Color.fromCssColorString('#e74c3c'), 48).toDataURL();
+  const ent = viewer.entities.add({
+    id,
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+    billboard: { image: pinImg, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.NONE, scale: 1 },
+    label: {
+      text: title, font: '14px sans-serif', fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset: new Cesium.Cartesian2(0, -42)
+    },
+    description: notes ? `<p>${escapeHtml(notes)}</p>` : undefined
+  });
+  ent.pinMeta = { id, lon, lat, height, title, notes }; // keep metadata on the entity
+  return ent;
+}
+
+function updatePinEntity(id, { title, notes }, viewer) {
+  const ent = viewer.entities.getById(id);
+  if (!ent) return;
+  ent.label.text = title;
+  ent.description = notes ? `<p>${escapeHtml(notes)}</p>` : undefined;
+  ent.pinMeta.title = title;
+  ent.pinMeta.notes = notes;
+}
+
+// --- Storage ---
+function savePinsToLocalStorage(viewer) {
+  const data = viewer.entities.values
+    .filter(e => e.pinMeta)
+    .map(e => e.pinMeta);
+  localStorage.setItem(PIN_STORE_KEY, JSON.stringify(data));
+}
+
+function loadPinsFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(PIN_STORE_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    arr.forEach(p => {
+      // viewer may not be globally visible; grab from window
+      const v = window._viewer || window.viewer || null;
+      if (!v) return;
+      createPinEntity(p, v);
+    });
+  } catch (e) {
+    console.warn('Could not load pins:', e);
+  }
+}
+
+// utility
+function escapeHtml(s='') {
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 </script>
 
