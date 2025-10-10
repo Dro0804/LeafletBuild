@@ -20,6 +20,8 @@
     display: none;          /* only shown when 3D button clicked */
   }
 
+  
+
   /* Leaflet map defaults */
   #leaflet-map {
     width: 100%;
@@ -213,6 +215,9 @@
 
   <!-- Leaflet Map Script -->
   <script>
+
+    const PINS_KEY = 'cesiumUserPins';
+
     document.addEventListener("DOMContentLoaded", function() {
       var map = L.map('leaflet-map').setView([-12.4634, 130.8456], 6);
 
@@ -270,6 +275,18 @@
     to3dBtn.style.display = 'inline-block';
   });
 
+// Load pins from the Django API and add them to the Cesium viewer
+async function loadServerPins(viewer) {
+  const res = await fetch('/api/annotations.geojson');
+  if (!res.ok) return;
+  const geojson = await res.json();
+  for (const f of (geojson.features || [])) {
+    const { id, title, notes, height } = (f.properties || {});
+    const [lon, lat] = f.geometry.coordinates;
+    createPinEntity({ id, lon, lat, height: height || 0, title, notes }, viewer);
+  }
+}
+
   async function initCesium() {
     console.log('[Cesium] init starting');
 
@@ -292,7 +309,11 @@
 
     window._viewer = viewer;  // helps external helpers access it
     setupPinUI(viewer);       // enable Add Pin UI
-     loadPinsFromLocalStorage(viewer);
+     
+    await loadServerPins(viewer); 
+    loadPinsFromLocalStorage(viewer);
+    
+    
 
     // === 2) Put camera somewhere sane so you see the globe immediately
 const LON = 133.05, LAT = -12.267;
@@ -315,15 +336,25 @@ let modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(surface, hpr);
 
 // Load the GLB; tell Cesium the model’s authoring axis.
 // Most GIS / CAD exports are **Z-up**. If your export was Y-up, switch to Axis.Y.
-const model = await Cesium.Model.fromGltfAsync({
-  url: '/static/models/topo_fixed.glb?v=3',
-  modelMatrix,
-  upAxis: Cesium.Axis.Z,       // try Axis.Z first; if wrong, try Axis.Y
-  forwardAxis: Cesium.Axis.X,  // safe default; try Axis.Y if your model faces sideways
-  scale: 1,                    // start neutral; we’ll scale after we see it
-  minimumPixelSize: 128,
-  cull: false,
-});
+let model;
+try {
+  model = await Cesium.Model.fromGltfAsync({
+    url: '/static/models/topo_fixed.glb?v=3',
+    modelMatrix,
+    upAxis: Cesium.Axis.Z,
+    forwardAxis: Cesium.Axis.X,
+    scale: 1,
+    minimumPixelSize: 128,
+    cull: false,
+  });
+  viewer.scene.primitives.add(model);
+
+  if (model?.readyPromise?.then) {
+    await model.readyPromise;
+  }
+} catch (e) {
+  console.warn('[Cesium] Model load failed — continuing without it', e);
+}
 
 // (Optional but very helpful while debugging)
 model.color = Cesium.Color.fromCssColorString('#dddddd');
@@ -335,65 +366,8 @@ model.backFaceCulling = false;
 viewer.scene.primitives.add(model);
 await viewer.zoomTo(model);
 
-// === 4) Re-center the model so its own origin sits on our lon/lat ===
-// Many exports are not centered at the model origin; this recenters it.
-model.readyPromise.then(() => {
-  const negateCenter = Cesium.Cartesian3.negate(
-    model.boundingSphere.center, new Cesium.Cartesian3()
-  );
-  model.modelMatrix = Cesium.Matrix4.multiplyByTranslation(
-    model.modelMatrix, negateCenter, new Cesium.Matrix4()
-  );
-  viewer.scene.requestRender();
-});
+
   }
-
-  // --- Allow users to click to add pins ---
-let handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-handler.setInputAction(function (click) {
-  // Convert mouse click to a globe position
-  let earthPosition = viewer.scene.pickPosition(click.position);
-
-  if (Cesium.defined(earthPosition)) {
-    // Convert Cartesian to lat/lon
-    const carto = Cesium.Cartographic.fromCartesian(earthPosition);
-    const lat = Cesium.Math.toDegrees(carto.latitude);
-    const lon = Cesium.Math.toDegrees(carto.longitude);
-
-    // Ask user for title & description
-    const title = prompt("Enter title for this location:");
-    const description = prompt("Enter description:");
-
-    if (title) {
-      const entity = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
-        billboard: {
-          image: 'https://cdn.jsdelivr.net/npm/ionicons@7.1.0/dist/svg/location-sharp.svg',
-          width: 28,
-          height: 28,
-          color: Cesium.Color.fromCssColorString('#2e7bf6'),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
-        },
-        label: {
-          text: title,
-          font: '16px "Inter", system-ui, sans-serif',
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 3,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(0, -24),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
-        },
-        description: `<p>${description || ''}</p>`
-      });
-
-      console.log('Added pin:', { title, description, lat, lon });
-      // Optional: persist it in browser storage
-      savePinToLocalStorage({ title, description, lat, lon });
-    }
-  }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 // Save to browser (localStorage)
 function savePinToLocalStorage(pin) {
@@ -437,53 +411,99 @@ const PIN_STORE_KEY = 'cesium_pins:v1';
 let addPinMode = false;
 let editingPinId = null;
 
-// --- UI wiring ---
+// --- Pins: UI wiring (Add / Exit) + globe click handler ---
 function setupPinUI(viewer) {
-  const pinUi = document.getElementById('pinUi');
-  const btnAdd = document.getElementById('pinModeBtn');
-  const btnDone = document.getElementById('exitPinModeBtn');
+  const btnAdd  = document.getElementById('pinModeBtn');       // "+ Add pin"
+  const btnExit = document.getElementById('exitPinModeBtn');   // "Done"
+  const pinUi   = document.getElementById('pinUi');            // container (optional)
 
-  // show the UI when 3D is visible
-  pinUi.style.display = 'block';
+  let addPinMode = false;
+
+  // Ensure we have a single reusable handler on the Cesium canvas
+  if (!viewer._pinHandler) {
+    viewer._pinHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  }
+
+  // Safety: clear any previous LEFT_CLICK action
+  viewer._pinHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  // Show the UI in 3D mode
+  if (pinUi) pinUi.style.display = 'block';
 
   btnAdd.onclick = () => {
+    console.log('[Pins] Add pin clicked');
     addPinMode = true;
     btnAdd.style.display = 'none';
-    btnDone.style.display = 'inline-block';
+    btnExit.style.display = 'inline-block';
     viewer.canvas.style.cursor = 'crosshair';
+
+    // Fresh LEFT_CLICK for placement
+    viewer._pinHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    viewer._pinHandler.setInputAction((movement) => {
+      console.log('[Pins] Globe click', movement.position);
+
+      // Try accurate surface pick; fall back to ellipsoid
+      let cartesian = viewer.scene.pickPosition(movement.position);
+      if (!cartesian) {
+        cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+      }
+      if (!cartesian) {
+        console.log('[Pins] No cartesian hit');
+        return;
+      }
+
+      const carto = Cesium.Cartographic.fromCartesian(cartesian);
+      const lon = Cesium.Math.toDegrees(carto.longitude);
+      const lat = Cesium.Math.toDegrees(carto.latitude);
+      const height = carto.height || 0;
+
+      console.log('[Pins] Opening modal at', { lon, lat, height });
+      openPinModal({ id: null, lon, lat, height, title: '', notes: '' }, viewer);
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   };
-  btnDone.onclick = () => exitAddMode(viewer);
 
-  // click-on-globe to place or edit
-  const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
-  handler.setInputAction((movement) => {
-    if (!addPinMode) return;
-
-    const pos = viewer.scene.pickPosition(movement.position);
-    if (!Cesium.defined(pos)) return;
-    const carto = Cesium.Cartographic.fromCartesian(pos);
-    const lon = Cesium.Math.toDegrees(carto.longitude);
-    const lat = Cesium.Math.toDegrees(carto.latitude);
-    const height = carto.height || 0;
-
-    openPinModal({ id: null, lon, lat, height, title:'', notes:'' }, viewer);
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-  // click an existing pin to edit
-  handler.setInputAction((movement) => {
-    const picked = viewer.scene.pick(movement.position);
-    if (!picked || !picked.id || !picked.id.pinMeta) return;
-    const ent = picked.id;
-    const { id, lon, lat, height, title, notes } = ent.pinMeta;
-    openPinModal({ id, lon, lat, height, title, notes }, viewer);
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  btnExit.onclick = () => {
+    console.log('[Pins] Exit pin mode');
+    addPinMode = false;
+    btnAdd.style.display = 'inline-block';
+    btnExit.style.display = 'none';
+    viewer.canvas.style.cursor = 'default';
+    viewer._pinHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  };
 }
 
-function exitAddMode(viewer) {
-  addPinMode = false;
-  document.getElementById('pinModeBtn').style.display = 'inline-block';
-  document.getElementById('exitPinModeBtn').style.display = 'none';
-  viewer.canvas.style.cursor = 'default';
+
+// --- Server API helpers ---
+async function savePinToServer(model) {
+  // model: { id?, title, notes, lon, lat, height }
+  const body = {
+    title: model.title,
+    notes: model.notes || "",
+    lon: model.lon,
+    lat: model.lat,
+    height: model.height || 0
+  };
+
+  if (model.id) {
+    // Update existing
+    const res = await fetch(`/api/annotations/${model.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('PATCH failed');
+    return model.id;
+  } else {
+    // Create new
+    const res = await fetch('/api/annotations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('POST failed');
+    const json = await res.json();
+    return json.id; // new DB id
+  }
 }
 
 // --- Modal / CRUD ---
@@ -508,27 +528,37 @@ function openPinModal(model, viewer) {
     m.style.display = 'none';
   };
 
-  saveBtn.onclick = () => {
-    const title = titleEl.value.trim() || 'Untitled pin';
-    const notes = notesEl.value.trim();
-    if (model.id) {
-      updatePinEntity(model.id, { title, notes }, viewer);
-    } else {
-      const id = crypto.randomUUID();
-      createPinEntity({ id, lon: model.lon, lat: model.lat, height: model.height, title, notes }, viewer);
-    }
-    savePinsToLocalStorage(viewer);
-    cleanup();
-  };
+  saveBtn.onclick = async () => {
+  const title = (titleEl.value || '').trim() || 'Untitled pin';
+  const notes = (notesEl.value || '').trim();
 
-  delBtn.onclick = () => {
-    if (model.id) {
-      const ent = viewer.entities.getById(model.id);
-      if (ent) viewer.entities.remove(ent);
-      savePinsToLocalStorage(viewer);
-    }
-    cleanup();
-  };
+  // 1) Send to server
+  const payload = { ...model, title, notes };
+  const id = await savePinToServer(payload);
+
+  // 2) Reflect in the viewer
+  if (model.id) {
+    updatePinEntity(model.id, { title, notes }, viewer);
+  } else {
+    // got new DB id → create entity with that id
+    createPinEntity({ id, lon: model.lon, lat: model.lat, height: model.height, title, notes }, viewer);
+  }
+
+  // 3) (optional) keep local mirror
+  savePinsToLocalStorage(viewer);
+
+  cleanup();
+};
+
+
+  delBtn.onclick = async () => {
+  if (model.id) {
+    await fetch(`/api/annotations/${model.id}`, { method: 'DELETE' });
+    viewer.entities.removeById(model.id);
+    savePinsToLocalStorage(viewer);
+  }
+  cleanup();
+};
 
   cancel.onclick = cleanup;
 }
@@ -588,6 +618,7 @@ function loadPinsFromLocalStorage() {
 function escapeHtml(s='') {
   return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+
 </script>
 
 <footer>
