@@ -5,68 +5,109 @@
   <!-- Cesium widgets CSS -->
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/cesium@1.122.0/Build/Cesium/Widgets/widgets.css">
-
   <!-- Cesium core JS -->
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.122.0/Build/Cesium/Cesium.js"></script>
 
   <style>
-  /* Ensure Cesium map sits above Leaflet and accepts clicks */
   #cesiumContainer {
     width: 100%;
     height: 75vh;
     position: relative;
-    z-index: 1;             /* stays above other content */
-    pointer-events: auto;   /* accepts mouse input */
-    display: none;          /* only shown when 3D button clicked */
+    z-index: 1;
+    pointer-events: auto;
+    display: none;
   }
 
-  
-
-  /* Leaflet map defaults */
   #leaflet-map {
     width: 100%;
     height: 75vh;
-    pointer-events: auto;   /* receives input when visible */
+    pointer-events: auto;
   }
 
-  /* --- Pin UI --- */
-.pin-ui {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  display: flex;
-  gap: .5rem;
-}
-.pin-modal {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.35);
-  display: grid; place-items: center;
-  z-index: 20;
-}
-.pin-modal__box {
-  background: #fff; color:#111; width: min(92vw, 400px);
-  border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2);
-}
-.pin-modal__box label { display: grid; gap: 6px; margin: 10px 0; font-weight: 600; }
-.pin-modal__box input, .pin-modal__box textarea {
-  width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;
-}
-.pin-modal__actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top: 10px; }
+  .pin-ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+    display: flex;
+    gap: .5rem;
+  }
 
-/* make sure Cesium can receive mouse events */
-#cesiumContainer { position: relative; z-index: 1; pointer-events: auto; }
-/* the inactive map is display:none already, but if you ever only hide it with visibility, keep: */
-#leaflet-map { pointer-events: auto; }
+  .pin-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    display: grid;
+    place-items: center;
+    z-index: 20;
+  }
+  .pin-modal__box {
+    background: #fff;
+    color:#111;
+    width: min(92vw, 400px);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+  }
+  .pin-modal__box label {
+    display: grid;
+    gap: 6px;
+    margin: 10px 0;
+    font-weight: 600;
+  }
+  .pin-modal__box input, .pin-modal__box textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
+  .pin-modal__actions {
+    display:flex;
+    gap:.5rem;
+    justify-content:flex-end;
+    margin-top: 10px;
+  }
 
-</style>
-  
+  /* Before/after image compare */
+  .img-compare-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    overflow: hidden;
+  }
+  .img-compare-container img {
+    width: 100%;
+    display: block;
+  }
+  .img-compare-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    overflow: hidden;
+  }
+  .img-compare-slider {
+    width: 100%;
+    margin-top: 10px;
+  }
+  .compare-label {
+    position: absolute;
+    top: 10px;
+    padding: 5px 10px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .compare-before { left: 10px; }
+  .compare-after { right: 10px; }
+  </style>
 {% endblock %}
 
 {% block title %}Stories of Country — Home{% endblock %}
 
 {% block content %}
-  <!-- Hero -->
+  <!-- HERO -->
   <section id="home" class="hero">
     <h1>Welcome to Stories of Country</h1>
     <p>
@@ -84,14 +125,9 @@
     </div>
   </section>
 
-  <!-- Story -->
+  <!-- STORY -->
   <section id="story" class="section">
     <h2>Stories of Country</h2>
-    <p>
-      In Aboriginal culture, stories are not just tales — they are teachings. 
-      They explain how land was formed, why places are important, and how people belong to Country.
-    </p>
-
     <h3>Mandilbareng / Mardbabay</h3>
     <p>
       The rock art at <strong>Mandilbareng (Mardbabay)</strong> in Western Arnhem Land is part of a
@@ -99,533 +135,255 @@
       Elders and families maintain and restore these places, ensuring that knowledge continues 
       across generations.
     </p>
-
-    <h3>Watch the Story</h3>
     <iframe src="https://player.vimeo.com/video/520815170?h=a8f5fcef4f" 
             width="640" height="360" frameborder="0" allowfullscreen></iframe>
   </section>
 
-  <!-- Map -->
-<!-- Map -->
-<section id="map" class="section">
-  <h2>Interactive Map</h2>
-  <p>
-    This prototype map connects <strong>cultural sites</strong> to digital storytelling.  
-    Markers show places like <em>Mandilbareng</em>, <em>Injalak Arts Centre</em>, and waterholes that sustain communities.
-  </p>
+  <!-- MAP -->
+  <section id="map" class="section">
+    <h2>Interactive Map</h2>
+    <p>
+      This prototype map connects <strong>cultural sites</strong> to digital storytelling.  
+      Markers show places like <em>Mandilbareng</em>, <em>Injalak Arts Centre</em>, and waterholes that sustain communities.
+    </p>
 
-  <!-- 3D toggle buttons -->
-  <div style="margin: 1rem 0;">
-    <button id="to3d" class="btn">View in 3D</button>
-    <button id="to2d" class="btn secondary" style="display: none;">Back to 2D</button>
-  </div>
-
-  <!-- 2D Leaflet map -->
-  <div id="leaflet-map"></div>
-
-  <!-- 3D Cesium map (hidden initially) -->
-  <div id="cesiumContainer" style="width:100%; height:75vh; display:none;"></div>
-  <!-- Pin UI (only shown in 3D) -->
-<div id="pinUi" class="pin-ui" style="display:none">
-  <button id="pinModeBtn" class="btn">➕ Add pin</button>
-  <button id="exitPinModeBtn" class="btn secondary" style="display:none">Done</button>
-</div>
-
-<!-- Pin modal -->
-<div id="pinModal" class="pin-modal" style="display:none">
-  <div class="pin-modal__box">
-    <h3 id="pinModalTitle">New pin</h3>
-    <label>
-      Title
-      <input id="pinTitle" type="text" placeholder="e.g. Waterhole" />
-    </label>
-    <label>
-      Notes
-      <textarea id="pinNotes" rows="4" placeholder="Type details…"></textarea>
-    </label>
-    <div class="pin-modal__actions">
-      <button id="pinSave" class="btn">Save</button>
-      <button id="pinDelete" class="btn danger" style="display:none">Delete</button>
-      <button id="pinCancel" class="btn secondary">Cancel</button>
+    <div style="margin: 1rem 0;">
+      <button id="to3d" class="btn">View in 3D</button>
+      <button id="to2d" class="btn secondary" style="display: none;">Back to 2D</button>
     </div>
-  </div>
-</div>
-</section>
 
+    <div id="leaflet-map"></div>
+    <div id="cesiumContainer"></div>
 
+    <!-- Pin UI -->
+    <div id="pinUi" class="pin-ui" style="display:none">
+      <button id="pinModeBtn" class="btn">➕ Add pin</button>
+      <button id="exitPinModeBtn" class="btn secondary" style="display:none">Done</button>
+    </div>
 
-  <!-- About -->
-  <section id="about" class="section">
-    <h2>About This Project</h2>
-    <p>
-      <strong>Stories of Country</strong> is a student-led research project at Charles Darwin University.  
-      It explores how modern digital tools can support the respectful sharing of Indigenous knowledge, stories, and cultural landscapes.
-    </p>
-    <p>
-      The project is not about replacing storytelling in community, but about creating <em>supportive platforms</em> that help 
-      <strong>Elders, artists, and families</strong> pass knowledge to future generations.
-    </p>
-
-    <h3>Our Tools</h3>
-    <ul>
-      <li><strong>Leaflet</strong> — for interactive maps linking Country to stories.</li>
-      <li><strong>Cesium</strong> — for 3D visualisation of landscapes and rock art.</li>
-      <li><strong>Django & Wagtail</strong> — for a flexible and accessible platform.</li>
-    </ul>
-
-    <h3>Why It Matters</h3>
-    <p>
-      Aboriginal and Torres Strait Islander cultures are some of the world’s oldest living traditions.  
-      Respecting and protecting these stories is essential for cultural survival, education, and connection to Country.  
-      This project contributes by creating a digital archive that complements community-led storytelling.
-    </p>
-
-    <!-- Screenshot -->
-    <div class="about-map">
-      <img src="{% static 'home/img/google_earth_screenshot.png' %}" 
-           alt="Annotated Map Example">
-      <p style="text-align:center; font-style:italic; margin-top:8px;">
-        Prototype map connecting cultural sites to stories.
-      </p>
+    <!-- Pin modal -->
+    <div id="pinModal" class="pin-modal" style="display:none">
+      <div class="pin-modal__box">
+        <h3 id="pinModalTitle">New pin</h3>
+        <label>Title
+          <input id="pinTitle" type="text" placeholder="e.g. Waterhole" />
+        </label>
+        <label>Notes
+          <textarea id="pinNotes" rows="4" placeholder="Type details…"></textarea>
+        </label>
+        <div class="pin-modal__actions">
+          <button id="pinSave" class="btn">Save</button>
+          <button id="pinDelete" class="btn danger" style="display:none">Delete</button>
+          <button id="pinCancel" class="btn secondary">Cancel</button>
+        </div>
+      </div>
     </div>
   </section>
 
-    <!-- 3D Demo -->
-     <section id="three-demo" class="section">
-      <h2>3D Rock Art Demo</h2>
-      <p>
-        Drag the slider to compare the rock art <strong>before</strong> and <strong>after</strong> digital restoration.  
-        This demonstrates how digital tools and 3D imaging help preserve and interpret cultural heritage.
-      </p>
-      
-      <div class="img-compare-container">
-        <img src="{% static 'home/img/after-restoration.jpg' %}" alt="After Restoration">
-  
+  <!-- 3D Rock Art Demo -->
+  <section id="three-demo" class="section">
+    <h2>3D Rock Art Demo</h2>
+    <p>
+      Drag the slider to compare the rock art <strong>before</strong> and <strong>after</strong> digital restoration.  
+      This demonstrates how digital tools and 3D imaging help preserve and interpret cultural heritage.
+    </p>
+
+    <div class="img-compare-container">
+      <img src="{% static 'home/img/after-restoration.jpg' %}" alt="After Restoration">
       <div class="img-compare-overlay">
         <img src="{% static 'home/img/before-restoration.jpg' %}" alt="Before Restoration">
       </div>
       <input type="range" min="0" max="100" value="50" class="img-compare-slider">
-
-    <!-- Labels -->
-     <span class="compare-label compare-before">Before</span>
-     <span class="compare-label compare-after">After</span>
+      <span class="compare-label compare-before">Before</span>
+      <span class="compare-label compare-after">After</span>
     </div>
-</section>
+  </section>
 
+  <!-- ABOUT -->
+  <section id="about" class="section">
+    <h2>About This Project</h2>
+    <p>
+      <strong>Stories of Country</strong> is a student-led research project at Charles Darwin University.
+      It explores how digital tools can support the respectful sharing of Indigenous knowledge, stories, and cultural landscapes.
+    </p>
+  </section>
 
-  <!-- Leaflet Map Script -->
+  <!-- SCRIPT -->
   <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Shared site marker
+    const SITE = {
+      title: "Mandilbareng / Mardbabay",
+      lat: -12.267,
+      lon: 133.05,
+      description: `
+        <h3>Mandilbareng / Mardbabay</h3>
+        <p>The rock art at Mandilbareng (Mardbabay) in Western Arnhem Land is part of a living cultural landscape.
+        It connects people, ancestors, animals, and seasons.</p>
+        <p><a href="/cms/mandilbareng-mardbabay-a-living-cultural-landscape/" target="_blank">Read more →</a></p>
+      `
+    };
 
-    const PINS_KEY = 'cesiumUserPins';
+    // --- LEAFLET 2D MAP ---
+    const map = L.map('leaflet-map').setView([SITE.lat, SITE.lon], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    L.marker([SITE.lat, SITE.lon])
+      .addTo(map)
+      .bindPopup(SITE.description);
 
-    document.addEventListener("DOMContentLoaded", function() {
-      var map = L.map('leaflet-map').setView([-12.4634, 130.8456], 6);
+    // --- CESIUM 3D MAP TOGGLE ---
+    const to3dBtn = document.getElementById('to3d');
+    const to2dBtn = document.getElementById('to2d');
+    const map2d = document.getElementById('leaflet-map');
+    const map3d = document.getElementById('cesiumContainer');
+    let viewer = null;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-
-      L.marker([-12.4634, 130.8456]).addTo(map).bindPopup("Darwin — Starting Point");
-      L.marker([-12.3325, 132.8336]).addTo(map).bindPopup("Injalak Arts Centre");
-      L.marker([-12.267, 133.05]).addTo(map).bindPopup("Mandilbareng (Mardbabay)");
+    to3dBtn.addEventListener('click', async () => {
+      map2d.style.display = 'none';
+      map3d.style.display = 'block';
+      to3dBtn.style.display = 'none';
+      to2dBtn.style.display = 'inline-block';
+      if (!viewer) viewer = await initCesium();
     });
 
-    // Before/After slider
+    to2dBtn.addEventListener('click', () => {
+      map3d.style.display = 'none';
+      map2d.style.display = 'block';
+      to2dBtn.style.display = 'none';
+      to3dBtn.style.display = 'inline-block';
+    });
+
+    async function initCesium() {
+      const viewer = new Cesium.Viewer('cesiumContainer', {
+        imageryProvider: new Cesium.UrlTemplateImageryProvider({
+          url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          credit: '© OpenStreetMap'
+        }),
+        baseLayerPicker: false,
+        terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+        animation: false,
+        timeline: false,
+        sceneModePicker: true
+      });
+
+      // Main site marker (3D pin)
+      const pinColor = Cesium.Color.fromCssColorString('#e74c3c');
+      const pinImg = new Cesium.PinBuilder().fromColor(pinColor, 48).toDataURL();
+      viewer.entities.add({
+        name: SITE.title,
+        position: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 0),
+        billboard: {
+          image: pinImg,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
+        },
+        label: {
+          text: SITE.title,
+          font: '16px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -48)
+        },
+        description: SITE.description
+      });
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 250000)
+      });
+
+      setupPinUI(viewer);
+      return viewer;
+    }
+
+    // ======== Pin Logic ========
+    function setupPinUI(viewer) {
+      const btnAdd  = document.getElementById('pinModeBtn');
+      const btnExit = document.getElementById('exitPinModeBtn');
+      const pinUi   = document.getElementById('pinUi');
+      const modal   = document.getElementById('pinModal');
+
+      pinUi.style.display = 'block';
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+      btnAdd.onclick = () => {
+        btnAdd.style.display = 'none';
+        btnExit.style.display = 'inline-block';
+        viewer.canvas.style.cursor = 'crosshair';
+
+        handler.setInputAction((movement) => {
+          const cartesian = viewer.scene.pickPosition(movement.position) ||
+            viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+          if (!cartesian) return;
+          const carto = Cesium.Cartographic.fromCartesian(cartesian);
+          const lon = Cesium.Math.toDegrees(carto.longitude);
+          const lat = Cesium.Math.toDegrees(carto.latitude);
+          openPinModal({ lon, lat, title: '', notes: '' }, viewer);
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+      };
+
+      btnExit.onclick = () => {
+        btnAdd.style.display = 'inline-block';
+        btnExit.style.display = 'none';
+        viewer.canvas.style.cursor = 'default';
+        handler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
+      };
+    }
+
+    function openPinModal(model, viewer) {
+      const m = document.getElementById('pinModal');
+      const titleEl = document.getElementById('pinTitle');
+      const notesEl = document.getElementById('pinNotes');
+      const saveBtn = document.getElementById('pinSave');
+      const cancel = document.getElementById('pinCancel');
+      m.style.display = 'grid';
+
+      const cleanup = () => { m.style.display = 'none'; };
+      saveBtn.onclick = () => {
+        const title = titleEl.value.trim() || 'Untitled pin';
+        const notes = notesEl.value.trim();
+        createPinEntity({ lon: model.lon, lat: model.lat, title, notes }, viewer);
+        cleanup();
+      };
+      cancel.onclick = cleanup;
+    }
+
+    function createPinEntity({ lon, lat, title, notes }, viewer) {
+      const pinImg = new Cesium.PinBuilder().fromColor(Cesium.Color.RED, 48).toDataURL();
+      viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(lon, lat),
+        billboard: { image: pinImg, verticalOrigin: Cesium.VerticalOrigin.BOTTOM },
+        label: {
+          text: title, font: '14px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -42)
+        },
+        description: notes
+      });
+    }
+
+    // Before/after slider
     const slider = document.querySelector(".img-compare-slider");
     const overlay = document.querySelector(".img-compare-overlay");
-
     if (slider && overlay) {
       slider.addEventListener("input", (e) => {
         overlay.style.width = `${e.target.value}%`;
       });
     }
-    
-    // ====== Cesium 3D Map Toggle ======
-// ====== Cesium 3D Map Toggle (single source of truth) ======
-  const to3dBtn = document.getElementById('to3d');
-  const to2dBtn = document.getElementById('to2d');
-  const map2d   = document.getElementById('leaflet-map');
-  const map3d   = document.getElementById('cesiumContainer');
-
-  let viewer = null;
-  let cesiumReady = false;
-
-  // toggle → 3D
-  to3dBtn?.addEventListener('click', async () => {
-    map2d.style.display = 'none';
-    map3d.style.display = 'block';
-    to3dBtn.style.display = 'none';
-    to2dBtn.style.display = 'inline-block';
-
-    if (!cesiumReady) {
-      await initCesium();
-      cesiumReady = true;
-    }
-    // tell Cesium its container size changed
-    viewer?.resize?.();
-    viewer?.scene?.requestRender?.();
   });
+  </script>
 
-  // toggle → 2D
-  to2dBtn?.addEventListener('click', () => {
-    map3d.style.display = 'none';
-    map2d.style.display = 'block';
-    to2dBtn.style.display = 'none';
-    to3dBtn.style.display = 'inline-block';
-  });
-
-// Load pins from the Django API and add them to the Cesium viewer
-async function loadServerPins(viewer) {
-  const res = await fetch('/api/annotations.geojson');
-  if (!res.ok) return;
-  const geojson = await res.json();
-  for (const f of (geojson.features || [])) {
-    const { id, title, notes, height } = (f.properties || {});
-    const [lon, lat] = f.geometry.coordinates;
-    createPinEntity({ id, lon, lat, height: height || 0, title, notes }, viewer);
-  }
-}
-
-  async function initCesium() {
-    console.log('[Cesium] init starting');
-
-    // 1) Create a viewer with token-free OSM imagery
-    viewer = new Cesium.Viewer('cesiumContainer', {
-      imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        credit: '© OpenStreetMap'
-      }),
-      baseLayerPicker: false,
-      sceneModePicker: true,
-      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-      timeline: false,
-      animation: false,
-      geocoder: false,
-      requestRenderMode: false   // keep rendering while we debug “white screen”
-    });
-    window._viewer = viewer; // handy for DevTools
-    console.log('[Cesium] viewer created', Cesium.VERSION);
-
-    window._viewer = viewer;  // helps external helpers access it
-    setupPinUI(viewer);       // enable Add Pin UI
-     
-    await loadServerPins(viewer); 
-    loadPinsFromLocalStorage(viewer);
-    
-    
-
-    // === 2) Put camera somewhere sane so you see the globe immediately
-const LON = 133.05, LAT = -12.267;
-viewer.camera.flyTo({
-  destination: Cesium.Cartesian3.fromDegrees(LON, LAT, 300000)
-});
-
-// === 3) Place model flat on the ground at lon/lat ===
-const surface = Cesium.Cartesian3.fromDegrees(LON, LAT, 0);
-
-// Use heading/pitch/roll (degrees) to orient the model in world space
-const hpr = new Cesium.HeadingPitchRoll(
-  Cesium.Math.toRadians(0),   // heading (rotate around up)
-  Cesium.Math.toRadians(0),   // pitch   (tilt forward/back)
-  Cesium.Math.toRadians(0)    // roll    (bank)
-);
-
-// Build a local ENU frame so “up” points away from Earth at that location
-let modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(surface, hpr);
-
-// Load the GLB; tell Cesium the model’s authoring axis.
-// Most GIS / CAD exports are **Z-up**. If your export was Y-up, switch to Axis.Y.
-let model;
-try {
-  model = await Cesium.Model.fromGltfAsync({
-    url: '/static/models/topo_fixed.glb?v=3',
-    modelMatrix,
-    upAxis: Cesium.Axis.Z,
-    forwardAxis: Cesium.Axis.X,
-    scale: 1,
-    minimumPixelSize: 128,
-    cull: false,
-  });
-  viewer.scene.primitives.add(model);
-
-  if (model?.readyPromise?.then) {
-    await model.readyPromise;
-  }
-} catch (e) {
-  console.warn('[Cesium] Model load failed — continuing without it', e);
-}
-
-// (Optional but very helpful while debugging)
-model.color = Cesium.Color.fromCssColorString('#dddddd');
-model.colorBlendMode = Cesium.ColorBlendMode.REPLACE;
-model.silhouetteColor = Cesium.Color.BLACK;
-model.silhouetteSize  = 2;
-model.backFaceCulling = false;
-
-viewer.scene.primitives.add(model);
-await viewer.zoomTo(model);
-
-
-  }
-
-// Save to browser (localStorage)
-function savePinToLocalStorage(pin) {
-  let pins = JSON.parse(localStorage.getItem('cesiumPins') || '[]');
-  pins.push(pin);
-  localStorage.setItem('cesiumPins', JSON.stringify(pins));
-}
-
-// Reload saved pins
-function loadPinsFromLocalStorage(viewer) {
-  const pins = JSON.parse(localStorage.getItem('cesiumPins') || '[]');
-  pins.forEach(p => {
-    viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0),
-      billboard: {
-        image: 'https://cdn.jsdelivr.net/npm/ionicons@7.1.0/dist/svg/location-sharp.svg',
-        width: 28,
-        height: 28,
-        color: Cesium.Color.fromCssColorString('#2e7bf6'),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
-      },
-      label: {
-        text: p.title,
-        font: '16px "Inter", system-ui, sans-serif',
-        fillColor: Cesium.Color.WHITE,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 3,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -24),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
-      },
-      description: `<p>${p.description}</p>`
-    });
-  });
-}
-
-// Simple key so dev/prod don’t collide
-const PIN_STORE_KEY = 'cesium_pins:v1';
-
-// runtime state
-let addPinMode = false;
-let editingPinId = null;
-
-// --- Pins: UI wiring (Add / Exit) + globe click handler ---
-function setupPinUI(viewer) {
-  const btnAdd  = document.getElementById('pinModeBtn');       // "+ Add pin"
-  const btnExit = document.getElementById('exitPinModeBtn');   // "Done"
-  const pinUi   = document.getElementById('pinUi');            // container (optional)
-
-  let addPinMode = false;
-
-  // Ensure we have a single reusable handler on the Cesium canvas
-  if (!viewer._pinHandler) {
-    viewer._pinHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  }
-
-  // Safety: clear any previous LEFT_CLICK action
-  viewer._pinHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-  // Show the UI in 3D mode
-  if (pinUi) pinUi.style.display = 'block';
-
-  btnAdd.onclick = () => {
-    console.log('[Pins] Add pin clicked');
-    addPinMode = true;
-    btnAdd.style.display = 'none';
-    btnExit.style.display = 'inline-block';
-    viewer.canvas.style.cursor = 'crosshair';
-
-    // Fresh LEFT_CLICK for placement
-    viewer._pinHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    viewer._pinHandler.setInputAction((movement) => {
-      console.log('[Pins] Globe click', movement.position);
-
-      // Try accurate surface pick; fall back to ellipsoid
-      let cartesian = viewer.scene.pickPosition(movement.position);
-      if (!cartesian) {
-        cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
-      }
-      if (!cartesian) {
-        console.log('[Pins] No cartesian hit');
-        return;
-      }
-
-      const carto = Cesium.Cartographic.fromCartesian(cartesian);
-      const lon = Cesium.Math.toDegrees(carto.longitude);
-      const lat = Cesium.Math.toDegrees(carto.latitude);
-      const height = carto.height || 0;
-
-      console.log('[Pins] Opening modal at', { lon, lat, height });
-      openPinModal({ id: null, lon, lat, height, title: '', notes: '' }, viewer);
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-  };
-
-  btnExit.onclick = () => {
-    console.log('[Pins] Exit pin mode');
-    addPinMode = false;
-    btnAdd.style.display = 'inline-block';
-    btnExit.style.display = 'none';
-    viewer.canvas.style.cursor = 'default';
-    viewer._pinHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
-  };
-}
-
-
-// --- Server API helpers ---
-async function savePinToServer(model) {
-  // model: { id?, title, notes, lon, lat, height }
-  const body = {
-    title: model.title,
-    notes: model.notes || "",
-    lon: model.lon,
-    lat: model.lat,
-    height: model.height || 0
-  };
-
-  if (model.id) {
-    // Update existing
-    const res = await fetch(`/api/annotations/${model.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error('PATCH failed');
-    return model.id;
-  } else {
-    // Create new
-    const res = await fetch('/api/annotations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error('POST failed');
-    const json = await res.json();
-    return json.id; // new DB id
-  }
-}
-
-// --- Modal / CRUD ---
-function openPinModal(model, viewer) {
-  const m = document.getElementById('pinModal');
-  const titleEl = document.getElementById('pinTitle');
-  const notesEl = document.getElementById('pinNotes');
-  const saveBtn = document.getElementById('pinSave');
-  const delBtn  = document.getElementById('pinDelete');
-  const cancel  = document.getElementById('pinCancel');
-
-  editingPinId = model.id; // null when new
-  document.getElementById('pinModalTitle').textContent = model.id ? 'Edit pin' : 'New pin';
-  titleEl.value = model.title || '';
-  notesEl.value = model.notes || '';
-  delBtn.style.display = model.id ? 'inline-block' : 'none';
-
-  m.style.display = 'grid';
-
-  const cleanup = () => {
-    saveBtn.onclick = delBtn.onclick = cancel.onclick = null;
-    m.style.display = 'none';
-  };
-
-  saveBtn.onclick = async () => {
-  const title = (titleEl.value || '').trim() || 'Untitled pin';
-  const notes = (notesEl.value || '').trim();
-
-  // 1) Send to server
-  const payload = { ...model, title, notes };
-  const id = await savePinToServer(payload);
-
-  // 2) Reflect in the viewer
-  if (model.id) {
-    updatePinEntity(model.id, { title, notes }, viewer);
-  } else {
-    // got new DB id → create entity with that id
-    createPinEntity({ id, lon: model.lon, lat: model.lat, height: model.height, title, notes }, viewer);
-  }
-
-  // 3) (optional) keep local mirror
-  savePinsToLocalStorage(viewer);
-
-  cleanup();
-};
-
-
-  delBtn.onclick = async () => {
-  if (model.id) {
-    await fetch(`/api/annotations/${model.id}`, { method: 'DELETE' });
-    viewer.entities.removeById(model.id);
-    savePinsToLocalStorage(viewer);
-  }
-  cleanup();
-};
-
-  cancel.onclick = cleanup;
-}
-
-// --- Entities ---
-function createPinEntity({ id, lon, lat, height=0, title, notes }, viewer) {
-  const pinImg = new Cesium.PinBuilder().fromColor(Cesium.Color.fromCssColorString('#e74c3c'), 48).toDataURL();
-  const ent = viewer.entities.add({
-    id,
-    position: Cesium.Cartesian3.fromDegrees(lon, lat, height),
-    billboard: { image: pinImg, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.NONE, scale: 1 },
-    label: {
-      text: title, font: '14px sans-serif', fillColor: Cesium.Color.WHITE,
-      outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-      pixelOffset: new Cesium.Cartesian2(0, -42)
-    },
-    description: notes ? `<p>${escapeHtml(notes)}</p>` : undefined
-  });
-  ent.pinMeta = { id, lon, lat, height, title, notes }; // keep metadata on the entity
-  return ent;
-}
-
-function updatePinEntity(id, { title, notes }, viewer) {
-  const ent = viewer.entities.getById(id);
-  if (!ent) return;
-  ent.label.text = title;
-  ent.description = notes ? `<p>${escapeHtml(notes)}</p>` : undefined;
-  ent.pinMeta.title = title;
-  ent.pinMeta.notes = notes;
-}
-
-// --- Storage ---
-function savePinsToLocalStorage(viewer) {
-  const data = viewer.entities.values
-    .filter(e => e.pinMeta)
-    .map(e => e.pinMeta);
-  localStorage.setItem(PIN_STORE_KEY, JSON.stringify(data));
-}
-
-function loadPinsFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem(PIN_STORE_KEY);
-    if (!raw) return;
-    const arr = JSON.parse(raw);
-    arr.forEach(p => {
-      // viewer may not be globally visible; grab from window
-      const v = window._viewer || window.viewer || null;
-      if (!v) return;
-      createPinEntity(p, v);
-    });
-  } catch (e) {
-    console.warn('Could not load pins:', e);
-  }
-}
-
-// utility
-function escapeHtml(s='') {
-  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-
-</script>
-
-<footer>
-  <div class="footer-inner">
-    <p>© {% now "Y" %} Charles Darwin University — Stories of Country Project</p>
-    <p>Built using Django, Wagtail, Leaflet & Cesium</p>
-    <p><a href="https://www.cdu.edu.au" target="_blank">Visit CDU Website</a></p>
-  </div>
-</footer>
+  <footer>
+    <div class="footer-inner">
+      <p>© {% now "Y" %} Charles Darwin University — Stories of Country Project</p>
+      <p>Built using Django, Wagtail, Leaflet & Cesium</p>
+    </div>
+  </footer>
 {% endblock %}
