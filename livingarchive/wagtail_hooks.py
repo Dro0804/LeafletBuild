@@ -55,7 +55,7 @@ def check_view_restrictions(page, request, *args, **kwargs):
 @hooks.register("register_admin_menu_item")
 def register_group_menu_item():
     return MenuItem(
-        "My Groups", reverse("group_list"), classnames="icon icon-group", order=10000
+        "My Groups", reverse("group_list"), classname="icon icon-group", order=10000
     )
 
 
