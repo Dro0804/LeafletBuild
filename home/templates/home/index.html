@@ -279,7 +279,7 @@ window.GOOGLE_MAPS_API_KEY = window.GOOGLE_MAPS_API_KEY || "AIzaSyDLZvgGKa2rw1GC
    async function initCesium() {
   const viewer = new Cesium.Viewer('cesiumContainer', {
     imageryProvider: new Cesium.UrlTemplateImageryProvider({
-      url: 'https://tile.openstreetmap.org/0/0/0.png',
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.pngg',
       credit: '© OpenStreetMap contributors'
     }),
     baseLayerPicker: false,
@@ -326,6 +326,74 @@ window.GOOGLE_MAPS_API_KEY = window.GOOGLE_MAPS_API_KEY || "AIzaSyDLZvgGKa2rw1GC
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 250000)
   });
+
+  (function attachCustomGeocoder(viewer) {
+    const toolbar = viewer.container.querySelector('.cesium-viewer-toolbar');
+
+    const container = document.createElement('div');
+    container.className = 'cesium-viewer-geocoderContainer';
+    container.style.width = '320px';
+
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.placeholder = 'Enter an address or landmark...';
+    input.className = 'cesium-geocoder-input';
+
+    const btn = document.createElement('button');
+    btn.className = 'cesium-button cesium-toolbar-button cesium-geocoder-searchButton';
+    btn.title = 'Search';
+
+    container.appendChild(input);
+    container.appendChild(btn);
+    toolbar.insertBefore(container, toolbar.firstChild);
+
+    async function runSearch(q) {
+      const query = (q || input.value || '').trim();
+      if (!query) return;
+
+      try {
+        const resp = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+          { headers: { 'Accept': 'application/json' } }
+        );
+        const results = await resp.json();
+        if (!Array.isArray(results) || results.length === 0) {
+          alert('No results found.');
+          return;
+        }
+
+        const { lat, lon, display_name } = results[0];
+        const latNum = parseFloat(lat);
+        const lonNum = parseFloat(lon);
+
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lonNum, latNum, 250000)
+        });
+
+        viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(lonNum, latNum),
+          point: { pixelSize: 8 },
+          label: {
+            text: display_name,
+            font: '14px sans-serif',
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(0, -16)
+          }
+        });
+      } catch (e) {
+        console.error('Search failed:', e);
+        alert('Search failed. Try a different query.');
+      }
+    }
+
+    btn.addEventListener('click', () => runSearch());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runSearch();
+    });
+  })(viewer);
 
   setupPinUI(viewer);
   return viewer;

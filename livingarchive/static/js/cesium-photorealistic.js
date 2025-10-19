@@ -20,7 +20,7 @@
 
   // ✅ Give the globe some imagery without Ion
   imageryProvider: new Cesium.UrlTemplateImageryProvider({
-    url: 'https://tile.openstreetmap.org/0/0/0.png',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     credit: '© OpenStreetMap contributors'
   })
 });
