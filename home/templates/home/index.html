@@ -102,6 +102,19 @@
   .compare-before { left: 10px; }
   .compare-after { right: 10px; }
   </style>
+
+  <!-- Cesium -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.122.0/Build/Cesium/Widgets/widgets.css">
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.122.0/Build/Cesium/Cesium.js"></script>
+
+<style>
+  /* Cesium + Leaflet containers */
+  #map { width: 100%; height: 75vh; }
+  #cesiumContainer { width: 100%; height: 75vh; display: none; }
+  .map-toggle { display:flex; gap:.5rem; margin:.75rem 0 1rem; }
+  .map-toggle .btn { padding:.45rem .85rem; border-radius:.5rem; cursor:pointer; }
+</style>
+
 {% endblock %}
 
 {% block title %}Stories of Country — Home{% endblock %}
@@ -146,6 +159,10 @@
       This prototype map connects <strong>cultural sites</strong> to digital storytelling.  
       Markers show places like <em>Mandilbareng</em>, <em>Injalak Arts Centre</em>, and waterholes that sustain communities.
     </p>
+
+ 
+</div>
+
 
     <div style="margin: 1rem 0;">
       <button id="to3d" class="btn">View in 3D</button>
@@ -234,71 +251,88 @@
       .addTo(map)
       .bindPopup(SITE.description);
 
-    // --- CESIUM 3D MAP TOGGLE ---
-    const to3dBtn = document.getElementById('to3d');
-    const to2dBtn = document.getElementById('to2d');
-    const map2d = document.getElementById('leaflet-map');
-    const map3d = document.getElementById('cesiumContainer');
-    let viewer = null;
+// Put your Google Map Tiles API key in one place
+window.GOOGLE_MAPS_API_KEY = window.GOOGLE_MAPS_API_KEY || "AIzaSyDLZvgGKa2rw1GCPn9jP0u-qXgHWbEtxbM";
 
-    to3dBtn.addEventListener('click', async () => {
-      map2d.style.display = 'none';
-      map3d.style.display = 'block';
-      to3dBtn.style.display = 'none';
-      to2dBtn.style.display = 'inline-block';
-      if (!viewer) viewer = await initCesium();
-    });
+  const to3dBtn = document.getElementById('to3d');
+  const to2dBtn = document.getElementById('to2d');
+  const map2d   = document.getElementById('leaflet-map');
+  const map3d   = document.getElementById('cesiumContainer');
+  let viewer = null;
 
-    to2dBtn.addEventListener('click', () => {
-      map3d.style.display = 'none';
-      map2d.style.display = 'block';
-      to2dBtn.style.display = 'none';
-      to3dBtn.style.display = 'inline-block';
-    });
+  to3dBtn.addEventListener('click', async () => {
+    map2d.style.display = 'none';
+    map3d.style.display = 'block';
+    to3dBtn.style.display = 'none';
+    to2dBtn.style.display = 'inline-block';
+    if (!viewer) viewer = await initCesium();   // creates one viewer once
+  });
 
-    async function initCesium() {
-      const viewer = new Cesium.Viewer('cesiumContainer', {
-        imageryProvider: new Cesium.UrlTemplateImageryProvider({
-          url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          credit: '© OpenStreetMap'
-        }),
-        baseLayerPicker: false,
-        terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-        animation: false,
-        timeline: false,
-        sceneModePicker: true
-      });
+  to2dBtn.addEventListener('click', () => {
+    map3d.style.display = 'none';
+    map2d.style.display = 'block';
+    to2dBtn.style.display = 'none';
+    to3dBtn.style.display = 'inline-block';
+  });
 
-      // Main site marker (3D pin)
-      const pinColor = Cesium.Color.fromCssColorString('#e74c3c');
-      const pinImg = new Cesium.PinBuilder().fromColor(pinColor, 48).toDataURL();
-      viewer.entities.add({
-        name: SITE.title,
-        position: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 0),
-        billboard: {
-          image: pinImg,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
-        },
-        label: {
-          text: SITE.title,
-          font: '16px sans-serif',
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 2,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(0, -48)
-        },
-        description: SITE.description
-      });
 
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 250000)
-      });
+   async function initCesium() {
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    imageryProvider: new Cesium.UrlTemplateImageryProvider({
+      url: 'https://tile.openstreetmap.org/0/0/0.png',
+      credit: '© OpenStreetMap contributors'
+    }),
+    baseLayerPicker: false,
+    animation: false,
+    timeline: false,
+    sceneModePicker: true
+  });
 
-      setupPinUI(viewer);
-      return viewer;
-    }
+  // ✅ Load Google Photorealistic 3D Tiles
+  try {
+    window.GOOGLE_MAPS_API_KEY = "AIzaSyD-ydwvOMijcOTBSMWs0-UGfP_4R-hVOos";
+
+    const url = `https://tile.googleapis.com/v1/3dtiles/root.json?key=${encodeURIComponent(window.GOOGLE_MAPS_API_KEY)}`;
+    const tileset = await Cesium.Cesium3DTileset.fromUrl(url, { maximumScreenSpaceError: 2.0 });
+    viewer.scene.primitives.add(tileset);
+    await tileset.readyPromise;
+  } catch (err) {
+    console.error('Failed to load Google Photorealistic 3D Tiles:', err);
+  }
+
+  // Keep your site marker code
+  const pinColor = Cesium.Color.fromCssColorString('#e74c3c');
+  const pinImg = new Cesium.PinBuilder().fromColor(pinColor, 48).toDataURL();
+  viewer.entities.add({
+    name: SITE.title,
+    position: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 0),
+    billboard: {
+      image: pinImg,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
+    },
+    label: {
+      text: SITE.title,
+      font: '16px sans-serif',
+      fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset: new Cesium.Cartesian2(0, -48)
+    },
+    description: SITE.description
+  });
+
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(SITE.lon, SITE.lat, 250000)
+  });
+
+  setupPinUI(viewer);
+  return viewer;
+}
+
+
+
 
     // ======== Pin Logic ========
     function setupPinUI(viewer) {
@@ -379,6 +413,7 @@
     }
   });
   </script>
+
 
   <footer>
     <div class="footer-inner">
