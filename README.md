@@ -18,25 +18,22 @@ python -m pip install --upgrade pip setuptools wheel //upgrade basic
 pip cache purge
 python -m pip install --no-cache-dir -r requirements.txt
 
-
 add .env file to livingarchive/settings/ with API_KEY= (to be sent)
 
-
 # To update database
-python3 manage.py makemigrations
-
+python manage.py makemigrations
 python manage.py migrate 
-
 python manage.py runserver
-
 
 # Email setup
 DEFAULT_FROM_EMAIL ="Living Archive <bhagwatithakuri77@gmail.com>"
 EMAIL_HOST_USER = 'bhagwatithakuri77@gmail.com'
 EMAIL_HOST_PASSWORD = 'tjyp zofa pfaw vmmc'
+# Create Superuser
+Python manage.py createsuperuser //input yourself
 
 # Wagtail Superuser
 Username=Wagtail
-
 Password=Wagtail1
+
 
