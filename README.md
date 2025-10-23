@@ -3,7 +3,7 @@ Wagtail Living Archive
 # Place install notes here - how to setup Wagtail server
 
 #setup virtual environment
-python3 -m venv env
+python -m venv env
 # activating in windows
 \env\Scripts\activate
 
@@ -37,4 +37,5 @@ EMAIL_HOST_PASSWORD = 'tjyp zofa pfaw vmmc'
 
 # Wagtail Superuser
 Username=Wagtail
+
 Password=Wagtail1
