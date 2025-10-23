@@ -5,7 +5,7 @@ Wagtail Living Archive
 #setup virtual environment
 python -m venv env
 # activating in windows
-\env\Scripts\activate
+.\env\Scripts\activate
 
 source env/bin/activate for Mac
 
@@ -39,3 +39,4 @@ EMAIL_HOST_PASSWORD = 'tjyp zofa pfaw vmmc'
 Username=Wagtail
 
 Password=Wagtail1
+
